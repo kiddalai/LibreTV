@@ -1,6 +1,6 @@
 // 全局常量配置
 const PROXY_URL = '/proxy/';    // 适用于 Cloudflare, Netlify (带重写), Vercel (带重写)
-// const HOPLAYER_URL = 'https://hoplayer.com/index.html';
+// const HOPLAYER_URL = 'shturl.cc/lKyHA70Hyd9iCwSpa7gpI';
 const SEARCH_HISTORY_KEY = 'videoSearchHistory';
 const MAX_HISTORY_ITEMS = 5;
 
@@ -13,24 +13,19 @@ const PASSWORD_CONFIG = {
 
 // 网站信息配置
 const SITE_CONFIG = {
-    name: 'LibreTV',
+    name: '永远粑粑影视',
     url: 'https://libretv.is-an.org',
     description: '免费在线视频搜索与观看平台',
     logo: 'image/logo.png',
     version: '1.0.3'
 };
 
-// API站点配置
+// API站点配置（已删除测试源，仅保留暴风资源）
 const API_SITES = {
     baofeng: {
         api: 'https://bfzyapi.com/api.php/provide/vod',
         name: '暴风资源',
         adult: false
-    },
-    testSource: {
-        api: 'https://www.example.com/api.php/provide/vod',
-        name: '空内容测试源',
-        adult: true
     }
     //ARCHIVE https://telegra.ph/APIs-08-12
 };
