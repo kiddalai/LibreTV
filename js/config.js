@@ -11,11 +11,11 @@ const PASSWORD_CONFIG = {
     verificationTTL: 90 * 24 * 60 * 60 * 1000  // 验证有效期（90天，约3个月）
 };
 
-// 网站信息配置
+// 网站信息配置（已修改为你想要的名字）
 const SITE_CONFIG = {
-    name: '永远粑粑影视',
-    url: 'https://libretv.is-an.org',
-    description: '免费在线视频搜索与观看平台',
+    name: '永远粑粑TV',
+    url: 'https://yy88.pages.dev', // 改成你的实际域名
+    description: '免费在线视频搜索与观看平台', // 也可以改成你想要的描述
     logo: 'image/logo.png',
     version: '1.0.3'
 };
