@@ -238,10 +238,14 @@ function fetchDoubanTags() {
     else renderDoubanTags(tvTags);
 }
 
-// 【核心】用豆瓣拿列表，封面走暴风
+// 【核心】用豆瓣拿列表，封面走暴风（修复版：加载遮罩+图片降级）
 function renderRecommend(tag, pageLimit, pageStart) {
     const container = document.getElementById("douban-results");
     if (!container) return;
+    // 清空旧内容 + 加载层
+    container.innerHTML = '';
+    container.classList.add("relative");
+
     const loadingOverlayHTML = `
         <div class="absolute inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-10">
             <div class="flex items-center justify-center">
@@ -250,7 +254,6 @@ function renderRecommend(tag, pageLimit, pageStart) {
             </div>
         </div>
     `;
-    container.classList.add("relative");
     container.insertAdjacentHTML('beforeend', loadingOverlayHTML);
 
     // 豆瓣接口（保持不变）
@@ -258,6 +261,10 @@ function renderRecommend(tag, pageLimit, pageStart) {
 
     fetchDoubanData(target)
         .then(async data => {
+            // 请求完成后移除加载遮罩
+            const loading = container.querySelector('.absolute.inset-0');
+            if(loading) loading.remove();
+
             if (!data.subjects || data.subjects.length === 0) {
                 container.innerHTML = `<div class="col-span-full text-center py-8"><div class="text-pink-500">❌ 暂无数据</div></div>`;
                 return;
@@ -282,6 +289,10 @@ function renderRecommend(tag, pageLimit, pageStart) {
             renderDoubanCards({ subjects: subjectsWithBFZY }, container);
         })
         .catch(error => {
+            // 出错也要移除加载遮罩
+            const loading = container.querySelector('.absolute.inset-0');
+            if(loading) loading.remove();
+
             console.error("获取豆瓣数据失败：", error);
             container.innerHTML = `
                 <div class="col-span-full text-center py-8">
@@ -291,7 +302,7 @@ function renderRecommend(tag, pageLimit, pageStart) {
         });
 }
 
-// 【关键】调用暴风API，返回封面URL（无则返回空）
+// 【关键】调用暴风API，返回封面URL（无则返回空，过滤无效地址）
 async function getBFZYCover(title) {
     try {
         // 暴风搜索接口：?wd=片名
@@ -299,9 +310,13 @@ async function getBFZYCover(title) {
         const res = await fetch(url, { timeout: 5000 });
         if (!res.ok) return "";
         const json = await res.json();
-        // 暴风返回结构：list[0].vod_pic
+        // 校验图片地址是否为有效http链接
         if (json && json.list && json.list.length > 0 && json.list[0].vod_pic) {
-            return json.list[0].vod_pic;
+            const pic = json.list[0].vod_pic.trim();
+            // 只返回 http/https 有效链接
+            if(pic.startsWith('http://') || pic.startsWith('https://')){
+                return pic;
+            }
         }
         return "";
     } catch (e) {
@@ -346,7 +361,7 @@ async function fetchDoubanData(url) {
     }
 }
 
-// 卡片渲染：优先暴风封面，降级豆瓣
+// 卡片渲染：优先暴风封面，降级豆瓣（修复跨域/代理/降级逻辑）
 function renderDoubanCards(data, container) {
     const fragment = document.createDocumentFragment();
     if (!data.subjects || data.subjects.length === 0) {
@@ -361,21 +376,28 @@ function renderDoubanCards(data, container) {
             const safeTitle = item.title.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
             const safeRate = (item.rate || "暂无").replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-            // 优先级：暴风封面 > 豆瓣封面
-            const originalCoverUrl = item.bfzyCover || item.cover || "";
-            let mainImgUrl = `/proxy/${encodeURIComponent(originalCoverUrl)}`;
-            let backupImgUrl = originalCoverUrl;
+            // 图片优先级：暴风封面直链 > 豆瓣原生封面 > 默认占位图
+            let mainCover = item.bfzyCover || item.cover || "";
+            const defaultCover = "https://via.placeholder.com/200x300/333/999?text=暂无封面";
 
             card.innerHTML = `
                 <div class="relative w-full aspect-[2/3] overflow-hidden cursor-pointer" onclick="fillAndSearchWithDouban('${safeTitle}')">
                     <img 
-                        src="${mainImgUrl}" 
+                        src="${mainCover}" 
                         alt="${safeTitle}" 
                         class="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
-                        onerror="this.onerror=null;this.src='${backupImgUrl}';"
+                        onerror="
+                            // 第一步：暴风图失败，切换豆瓣原图
+                            if(this.src !== '${item.cover}'){
+                                this.src='${item.cover}';
+                            }
+                            // 第二步：豆瓣图也失败，切换默认占位图
+                            else if(this.src !== '${defaultCover}'){
+                                this.src='${defaultCover}';
+                            }
+                            this.onerror=null;
+                        "
                         loading="lazy" 
-                        referrerpolicy="no-referrer"
-                        crossorigin="anonymous"
                     >
                     <div class="absolute inset-0 bg-gradient-to-t from-black to-transparent opacity-60"></div>
                     <div class="absolute bottom-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded-sm">
