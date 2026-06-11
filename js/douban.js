@@ -499,7 +499,7 @@ async function fetchDoubanData(url) {
     }
 }
 
-// 抽取渲染豆瓣卡片的逻辑到单独函数【重点修复图片加载】
+// 抽取渲染豆瓣卡片的逻辑到单独函数【已适配 /proxy/ 路径式图片代理】
 function renderDoubanCards(data, container) {
     // 创建文档片段以提高性能
     const fragment = document.createDocumentFragment();
@@ -528,22 +528,11 @@ function renderDoubanCards(data, container) {
                 .replace(/</g, '&lt;')
                 .replace(/>/g, '&gt;');
 
-            // ========== 图片加载核心修复 ==========
+            // ========== 适配 Cloudflare /proxy/ 路径代理 ==========
             const originalCoverUrl = item.cover || "";
-            // 优先使用全局图片代理（config.js 里的 IMAGE_PROXY_URL）
-            let mainImgUrl = "";
-            let backupImgUrl = "";
-
-            if (typeof IMAGE_PROXY_URL !== 'undefined' && IMAGE_PROXY_URL) {
-                // 优先图片代理
-                mainImgUrl = IMAGE_PROXY_URL + encodeURIComponent(originalCoverUrl);
-                // 降级：站点自带 /proxy 代理
-                backupImgUrl = PROXY_URL + encodeURIComponent(originalCoverUrl);
-            } else {
-                // 无全局图片代理，先走站点代理，再走原图
-                mainImgUrl = PROXY_URL + encodeURIComponent(originalCoverUrl);
-                backupImgUrl = originalCoverUrl;
-            }
+            // 统一使用站点自带 /proxy 图片代理
+            let mainImgUrl = `/proxy/${encodeURIComponent(originalCoverUrl)}`;
+            let backupImgUrl = originalCoverUrl;
 
             // 为不同设备优化卡片布局
             card.innerHTML = `
@@ -555,6 +544,7 @@ function renderDoubanCards(data, container) {
                         onerror="this.onerror=null;this.src='${backupImgUrl}';"
                         loading="lazy" 
                         referrerpolicy="no-referrer"
+                        crossorigin="anonymous"
                     >
                     <div class="absolute inset-0 bg-gradient-to-t from-black to-transparent opacity-60"></div>
                     <div class="absolute bottom-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded-sm">
