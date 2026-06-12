@@ -2,9 +2,9 @@ export async function onRequest({ request }) {
   const url = new URL(request.url);
   const target = url.searchParams.get("url");
 
-  // 只允许代理豆瓣图片域名
+  // 只允许代理豆瓣图片域名，防止被滥用
   if (!target || !target.includes("doubanio.com")) {
-    return new Response("400 Bad Request", { status: 400 });
+    return new Response("400 Bad Request: Only douban images allowed", { status: 400 });
   }
 
   try {
@@ -25,6 +25,6 @@ export async function onRequest({ request }) {
 
     return new Response(res.body, { headers });
   } catch (e) {
-    return new Response("403 Forbidden", { status: 403 });
+    return new Response("403 Forbidden: Failed to fetch image", { status: 403 });
   }
 }
