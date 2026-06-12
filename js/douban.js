@@ -1,21 +1,12 @@
-// 豆瓣热门电影电视剧推荐功能（封面改用 TMDB 稳定API）
+// 豆瓣热门电影电视剧推荐功能（还原豆瓣原生封面，移除TMDB）
 
-// 豆瓣标签列表 - 修改为默认标签
+// 豆瓣标签列表 - 默认标签
 let defaultMovieTags = ['热门', '最新', '经典', '豆瓣高分', '冷门佳片', '华语', '欧美', '韩国', '日本', '动作', '喜剧', '日综', '爱情', '科幻', '悬疑', '恐怖', '治愈'];
 let defaultTvTags = ['热门', '美剧', '英剧', '韩剧', '日剧', '国产剧', '港剧', '日本动画', '综艺', '纪录片'];
 
 // 用户标签列表
 let movieTags = [];
 let tvTags = [];
-
-// ========== TMDB 配置（替换成你的key）==========
-const TMDB_API_KEY = "YOUR_TMDB_KEY"; // 👉 替换成你自己的 TMDB v3 key
-const TMDB_BASE_URL = "https://api.themoviedb.org/3";
-const TMDB_IMG_URL = "https://image.tmdb.org/t/p/w500";
-// =============================================
-
-// 并发缓存：避免同一片名重复请求
-const tmdbCache = new Map();
 
 // 加载用户标签
 function loadUserTags() {
@@ -234,7 +225,7 @@ function setupDoubanRefreshBtn() {
     };
 }
 
-// 标签接口（改用本地）
+// 标签接口（本地）
 function fetchDoubanTags() {
     movieTags = [...defaultMovieTags];
     tvTags = [...defaultTvTags];
@@ -242,7 +233,7 @@ function fetchDoubanTags() {
     else renderDoubanTags(tvTags);
 }
 
-// 【核心】用豆瓣拿列表，封面走 TMDB（稳定无跨域）
+// 【核心】纯豆瓣接口 + 豆瓣原生封面
 function renderRecommend(tag, pageLimit, pageStart) {
     const container = document.getElementById("douban-results");
     if (!container) return;
@@ -262,7 +253,7 @@ function renderRecommend(tag, pageLimit, pageStart) {
     const target = `https://movie.douban.com/j/search_subjects?type=${doubanMovieTvCurrentSwitch}&tag=${tag}&sort=recommend&page_limit=${pageLimit}&page_start=${pageStart}`;
 
     fetchDoubanData(target)
-        .then(async data => {
+        .then(data => {
             const loading = container.querySelector('.absolute.inset-0');
             if(loading) loading.remove();
 
@@ -271,20 +262,8 @@ function renderRecommend(tag, pageLimit, pageStart) {
                 return;
             }
 
-            // 并行请求 TMDB 封面
-            const subjectsWithTMDB = await Promise.all(
-                data.subjects.map(async item => {
-                    const title = item.title.trim();
-                    if (tmdbCache.has(title)) {
-                        return { ...item, tmdbCover: tmdbCache.get(title) };
-                    }
-                    const tmdbCover = await getTMDBCover(title, doubanMovieTvCurrentSwitch);
-                    tmdbCache.set(title, tmdbCover);
-                    return { ...item, tmdbCover };
-                })
-            );
-
-            renderDoubanCards({ subjects: subjectsWithTMDB }, container);
+            // 直接渲染豆瓣数据，不再请求TMDB
+            renderDoubanCards(data, container);
         })
         .catch(error => {
             const loading = container.querySelector('.absolute.inset-0');
@@ -298,25 +277,7 @@ function renderRecommend(tag, pageLimit, pageStart) {
         });
 }
 
-// 【关键】TMDB 搜索封面（电影/电视剧自动适配）
-async function getTMDBCover(title, type) {
-    try {
-        const searchType = type === 'movie' ? 'movie' : 'tv';
-        const url = `${TMDB_BASE_URL}/search/${searchType}?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(title)}&language=zh-CN`;
-        const res = await fetch(url, { timeout: 5000 });
-        if (!res.ok) return "";
-        const json = await res.json();
-        if (json.results && json.results.length > 0 && json.results[0].poster_path) {
-            return `${TMDB_IMG_URL}${json.results[0].poster_path}`;
-        }
-        return "";
-    } catch (e) {
-        console.warn("TMDB封面获取失败：", title, e);
-        return "";
-    }
-}
-
-// 请求封装（不变）
+// 请求封装（代理/备用源不变）
 async function fetchDoubanData(url) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000);
@@ -352,7 +313,7 @@ async function fetchDoubanData(url) {
     }
 }
 
-// 卡片渲染：优先TMDB → 豆瓣 → 默认占位
+// 卡片渲染：仅使用豆瓣原图 + 兜底占位
 function renderDoubanCards(data, container) {
     const fragment = document.createDocumentFragment();
     if (!data.subjects || data.subjects.length === 0) {
@@ -361,30 +322,21 @@ function renderDoubanCards(data, container) {
         emptyEl.innerHTML = `<div class="text-pink-500">❌ 暂无数据</div>`;
         fragment.appendChild(emptyEl);
     } else {
+        const defaultCover = "https://via.placeholder.com/200x300/333/999?text=暂无封面";
         data.subjects.forEach(item => {
             const card = document.createElement("div");
             card.className = "bg-[#111] hover:bg-[#222] transition-all duration-300 rounded-lg overflow-hidden flex flex-col transform hover:scale-105 shadow-md hover:shadow-lg";
             const safeTitle = item.title.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
             const safeRate = (item.rate || "暂无").replace(/</g, '&lt;').replace(/>/g, '&gt;');
-
-            // 优先级：TMDB → 豆瓣 → 默认占位
-            let mainCover = item.tmdbCover || item.cover || "";
-            const defaultCover = "https://via.placeholder.com/200x300/333/999?text=暂无封面";
+            const doubanCover = item.cover || "";
 
             card.innerHTML = `
                 <div class="relative w-full aspect-[2/3] overflow-hidden cursor-pointer" onclick="fillAndSearchWithDouban('${safeTitle}')">
                     <img 
-                        src="${mainCover}" 
+                        src="${doubanCover}" 
                         alt="${safeTitle}" 
                         class="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
-                        onerror="
-                            if(this.src !== '${item.cover}'){
-                                this.src='${item.cover}';
-                            } else if(this.src !== '${defaultCover}'){
-                                this.src='${defaultCover}';
-                            }
-                            this.onerror=null;
-                        "
+                        onerror="this.src='${defaultCover}';this.onerror=null;"
                         loading="lazy" 
                     >
                     <div class="absolute inset-0 bg-gradient-to-t from-black to-transparent opacity-60"></div>
