@@ -1,3 +1,7 @@
+// 接口代理（JSON 格式）
+const API_PROXY = "https://api.allorigins.win/get?url=";
+// 图片代理（原始流）
+const IMG_PROXY = "https://api.allorigins.win/raw?url=";
 // 全局常量配置
 const PROXY_URL = '/proxy/';    // 适用于 Cloudflare, Netlify (带重写), Vercel (带重写)
 // const HOPLAYER_URL = 'https://hoplayer.com/index.html';
