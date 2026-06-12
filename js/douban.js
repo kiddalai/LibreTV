@@ -475,7 +475,7 @@ async function fetchDoubanData(url) {
         console.error("豆瓣 API 请求失败（直接代理）：", err);
         
         // 失败后尝试备用方法：作为备选
-        const fallbackUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+        const fallbackUrl = API_PROXY + encodeURIComponent(url);
         
         try {
             const fallbackResponse = await fetch(fallbackUrl);
@@ -533,7 +533,7 @@ function renderDoubanCards(data, container) {
             const originalCoverUrl = item.cover;
             
             // 2. 也准备代理URL作为备选
-            const proxiedCoverUrl = PROXY_URL + encodeURIComponent(originalCoverUrl);
+            const proxiedCoverUrl = IMG_PROXY + encodeURIComponent(originalCoverUrl);
             
             // 为不同设备优化卡片布局
             card.innerHTML = `
